@@ -1,0 +1,38 @@
+name: Backend Continuous Integration
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'backend/**'
+  workflow_dispatch:
+
+jobs:
+  reusable-ci:
+    uses: ./.github/workflows/reusable-backend-ci.yaml
+
+  build:
+    runs-on: ubuntu-latest
+    needs: [reusable-ci]
+    steps:
+      - uses: actions/checkout@v3
+      - name: Build Docker image
+        run: docker build --tag mp-backend:latest .
+        working-directory: ./backend
+
+  report-status:
+    runs-on: ubuntu-latest
+    needs: [reusable-ci, build]
+    if: always()
+    steps:
+      - name: Post workflow status
+        uses: peter-evans/commit-comment@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          body: |-
+            **Backend CI Workflow Status**
+
+            - Linting: ${{ needs.reusable-ci.outputs.lint-status }}
+            - Testing: ${{ needs.reusable-ci.outputs.test-status }}
+            - Build: ${{ needs.build.result }}
