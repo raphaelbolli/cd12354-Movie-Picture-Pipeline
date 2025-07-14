@@ -8,6 +8,9 @@ on:
       - 'backend/**'
   workflow_dispatch:
 
+permissions:
+  pull-requests: write
+
 jobs:
   reusable-ci:
     uses: ./.github/workflows/reusable-backend-ci.yaml
