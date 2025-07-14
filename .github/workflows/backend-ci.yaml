@@ -8,9 +8,6 @@ on:
       - 'backend/**'
   workflow_dispatch:
 
-permissions:
-  pull-requests: write
-
 jobs:
   reusable-ci:
     uses: ./.github/workflows/reusable-backend-ci.yaml
@@ -28,6 +25,8 @@ jobs:
     runs-on: ubuntu-latest
     needs: [reusable-ci, build]
     if: always()
+    permissions:
+      pull-requests: write
     steps:
       - name: Post workflow status
         uses: peter-evans/commit-comment@v1
