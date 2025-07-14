@@ -6,6 +6,9 @@ on:
       - 'frontend/**'
   workflow_dispatch:
 
+permissions:
+  pull-requests: write
+
 jobs:
   reusable-ci:
     uses: ./.github/workflows/reusable-frontend-ci.yaml
