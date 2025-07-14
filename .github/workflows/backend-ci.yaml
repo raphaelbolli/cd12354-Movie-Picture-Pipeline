@@ -27,6 +27,7 @@ jobs:
     if: always()
     permissions:
       pull-requests: write
+      contents: write
     steps:
       - name: Post workflow status
         uses: peter-evans/commit-comment@v1
