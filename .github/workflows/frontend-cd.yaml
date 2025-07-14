@@ -56,7 +56,7 @@ jobs:
     needs: [lint, test]
     env:
       REACT_APP_MOVIE_API_URL: http://a91106355e9b44f3d91cb4498876326a-1125659993.us-east-1.elb.amazonaws.com
-      ECR_REPOSITORY: mp-frontend
+      ECR_REPOSITORY: frontend
       IMAGE_TAG: latest
     steps:
       - name: Checkout code
@@ -99,7 +99,7 @@ jobs:
           aws-region: us-east-1
 
       - name: Set up Kubeconfig
-        run: aws eks update-kubeconfig --name <YOUR_EKS_CLUSTER_NAME> --region us-east-1
+        run: aws eks update-kubeconfig --name cluster --region us-east-1
 
       - name: Deploy to EKS
         run: |
@@ -108,5 +108,5 @@ jobs:
         working-directory: ./frontend/k8s
         env:
           ECR_REGISTRY: ${{ needs.build-and-push.outputs.registry }}
-          ECR_REPOSITORY: mp-frontend
+          ECR_REPOSITORY: frontend
           IMAGE_TAG: latest
