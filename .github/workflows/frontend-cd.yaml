@@ -57,7 +57,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [lint, test]
     env:
-      REACT_APP_MOVIE_API_URL: http://a91106355e9b44f3d91cb4498876326a-1125659993.us-east-1.elb.amazonaws.com
+      REACT_APP_MOVIE_API_URL: ${{ vars.REACT_APP_MOVIE_API_URL }}
       ECR_REPOSITORY: frontend
       FRONTEND_ECR_REPO_URL: ${{ vars.FRONTEND_ECR_REPO_URL }}
     outputs:
