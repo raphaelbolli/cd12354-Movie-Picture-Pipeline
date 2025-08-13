@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - main
+    paths:
+      - 'frontend/**'
   workflow_dispatch:
 
 jobs:
@@ -57,7 +59,9 @@ jobs:
     env:
       REACT_APP_MOVIE_API_URL: http://a91106355e9b44f3d91cb4498876326a-1125659993.us-east-1.elb.amazonaws.com
       ECR_REPOSITORY: frontend
-      IMAGE_TAG: latest
+    outputs:
+      ecr_registry: ${{ steps.login-ecr.outputs.registry }}
+      image_tag: ${{ steps.vars.outputs.image_tag }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -73,6 +77,10 @@ jobs:
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v1
 
+      - name: Set image tag
+        id: vars
+        run: echo "image_tag=${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v1
 
@@ -81,7 +89,7 @@ jobs:
         with:
           context: ./frontend
           push: true
-          tags: ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}
+          tags: ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ steps.vars.outputs.image_tag }}
           build-args: |
             REACT_APP_MOVIE_API_URL=${{ env.REACT_APP_MOVIE_API_URL }}
           cache-from: type=registry,ref=${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:cache
@@ -104,12 +112,22 @@ jobs:
       - name: Set up Kubeconfig
         run: aws eks update-kubeconfig --name cluster --region us-east-1
 
+      - name: Install kustomize
+        uses: imranismail/setup-kustomize@v2
+        with:
+          kustomize-version: v4.5.7
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'v1.28.0'
+
       - name: Deploy to EKS
         run: |
           kustomize edit set image placeholder=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
           kustomize build | kubectl apply -f -
         working-directory: ./frontend/k8s
         env:
-          ECR_REGISTRY: ${{ needs.build-and-push.outputs.registry }}
+          ECR_REGISTRY: ${{ needs.build-and-push.outputs.ecr_registry }}
           ECR_REPOSITORY: frontend
-          IMAGE_TAG: latest
+          IMAGE_TAG: ${{ needs.build-and-push.outputs.image_tag }}
