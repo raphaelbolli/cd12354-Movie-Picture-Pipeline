@@ -59,9 +59,11 @@ jobs:
     env:
       REACT_APP_MOVIE_API_URL: http://a91106355e9b44f3d91cb4498876326a-1125659993.us-east-1.elb.amazonaws.com
       ECR_REPOSITORY: frontend
+      FRONTEND_ECR_REPO_URL: ${{ vars.FRONTEND_ECR_REPO_URL }}
     outputs:
       ecr_registry: ${{ steps.login-ecr.outputs.registry }}
       image_tag: ${{ steps.vars.outputs.image_tag }}
+      repo_url: ${{ steps.set-repo.outputs.repo_url }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -81,6 +83,15 @@ jobs:
         id: vars
         run: echo "image_tag=${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
 
+      - name: Resolve repository URL
+        id: set-repo
+        run: |
+          if [ -n "${FRONTEND_ECR_REPO_URL}" ]; then
+            echo "repo_url=${FRONTEND_ECR_REPO_URL}" >> "$GITHUB_OUTPUT"
+          else
+            echo "repo_url=${{ steps.login-ecr.outputs.registry }}/${ECR_REPOSITORY}" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v1
 
@@ -89,11 +100,11 @@ jobs:
         with:
           context: ./frontend
           push: true
-          tags: ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ steps.vars.outputs.image_tag }}
+          tags: ${{ steps.set-repo.outputs.repo_url }}:${{ steps.vars.outputs.image_tag }}
           build-args: |
             REACT_APP_MOVIE_API_URL=${{ env.REACT_APP_MOVIE_API_URL }}
-          cache-from: type=registry,ref=${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:cache
-          cache-to: type=registry,ref=${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:cache,mode=max
+          cache-from: type=registry,ref=${{ steps.set-repo.outputs.repo_url }}:cache
+          cache-to: type=registry,ref=${{ steps.set-repo.outputs.repo_url }}:cache,mode=max
 
   deploy:
     runs-on: ubuntu-latest
@@ -124,10 +135,9 @@ jobs:
 
       - name: Deploy to EKS
         run: |
-          kustomize edit set image placeholder=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          kustomize edit set image placeholder=$IMAGE_REPO_URL:$IMAGE_TAG
           kustomize build | kubectl apply -f -
         working-directory: ./frontend/k8s
         env:
-          ECR_REGISTRY: ${{ needs.build-and-push.outputs.ecr_registry }}
-          ECR_REPOSITORY: frontend
+          IMAGE_REPO_URL: ${{ needs.build-and-push.outputs.repo_url }}
           IMAGE_TAG: ${{ needs.build-and-push.outputs.image_tag }}
